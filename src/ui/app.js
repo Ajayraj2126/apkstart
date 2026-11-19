@@ -154,7 +154,7 @@ function renderGrid() {
       </div>
       <div class="name">${esc(a.label)}</div>
       <div class="meta">${a.running ? 'Running' : `v${esc(a.versionName)}${a.lastLaunchAt ? ' · ' + relTime(a.lastLaunchAt) : ''}`}</div>
-      <div class="open-hint">${a.running ? 'Bring to front' : '打开'}</div>
+      <div class="open-hint">${a.running ? 'Bring to front' : 'Open'}</div>
     </div>
   `).join('') + `
     <div class="card card-add" id="cardAdd" role="button" tabindex="0" title="Drop APK files or click to choose">
@@ -749,7 +749,7 @@ function bindAndroid() {
     const r = await api.android.set(key, value).catch(() => null);
     toast({
       type: r && r.ok ? 'ok' : 'error',
-      title: r && r.ok ? (msg || 'Applied') : `Failed: ${(r && r.error) || '运行时未就绪'}`,
+      title: r && r.ok ? (msg || 'Applied') : `Failed: ${(r && r.error) || 'Runtime not ready'}`,
     });
     if (r && r.ok) refreshAndroid();
   };
@@ -847,7 +847,7 @@ function renderPreflight(res) {
       btn.addEventListener('click', async () => {
         btn.disabled = true;
         const old = btn.textContent;
-        btn.textContent = '正在处理…';
+        btn.textContent = 'Processing…';
         let r = null;
         if (it.action.id === 'accel') r = await api.enableAccel().catch(() => null);
         else r = await api.enableVirtualization().catch(() => null);
@@ -880,7 +880,7 @@ function renderPreflight(res) {
   const rec = report.recommended || {};
   if (sum) {
     sum.textContent = `${report.summary}。Recommended settings: ${Math.round((rec.memoryMB || 0) / 1024)} GB RAM / `
-      + `${rec.cores || 2} 核 / ${rec.renderSize || 'auto'} · renderer: ${rec.gpuMode || 'auto'}`
+      + `${rec.cores || 2} cores / ${rec.renderSize || 'auto'} · renderer: ${rec.gpuMode || 'auto'}`
       + (edition === 'store' ? ' (Store edition: enable Windows features manually)' : '');
   }
   if (applyBtn) applyBtn.hidden = false;
@@ -917,7 +917,7 @@ function renderDrivers(r) {
   const onCount = drivers.filter((d) => d.enabled && d.matched).length;
   if (sum) {
     const accel = host.accel === 'none' ? 'No hardware acceleration' : (host.accel || 'Unknown');
-    sum.textContent = `本机：${host.platform || ''}/${host.arch || ''} · ${host.gpuVendor || 'Unknown'} GPU · ${accel}`
+    sum.textContent = `Host: ${host.platform || ''}/${host.arch || ''} · ${host.gpuVendor || 'Unknown'} GPU · ${accel}`
       + ` · emulator ${host.emulatorVersion || 'Unknown'}; drivers: ${drivers.length} total, ${onCount} active.`
       + (errors.length ? ` ${errors.length} driver file(s) failed to load (see below).` : '');
   }
@@ -1059,10 +1059,10 @@ async function refreshDataInfo() {
     : (info.fsGB ? `Actual file system: ${info.fsGB} GB` : (info.imageGB ? `${info.imageGB} GB` : 'Not created'));
   const free = info.freeDiskMB ? `${(info.freeDiskMB / 1024).toFixed(1)} GB` : 'Unknown';
   const pending = Number(info.pendingGB) > 0
-    ? ` 目标 ${info.configuredGB} GB 还没生效：安卓正在用快速启动差量盘，需要「重置安卓数据”后按新容量重建（会清空已装应用)。`
+    ? ` Requested ${info.configuredGB} GB is pending: Android is using a quick-boot overlay. Reset Android Data to rebuild /data at the new size (this deletes installed apps).`
     : '';
-  el.textContent = `当前数据分区：${img}${auto ? '（Automatic)' : ''} · 所在磁盘剩余 ${free}。${pending}`
-    + '游戏提示「存储空间不足”就把这里调大后点「立即扩容”；能就地扩容时不丢已装应用。';
+  el.textContent = `Current data partition: ${img}${auto ? ' (automatic)' : ''} · Free disk space: ${free}. ${pending}`
+    + 'If a game reports insufficient storage, choose a larger size and select Expand Now. Existing apps are preserved when in-place expansion is possible.';
 }
 
 async function openSettings() {
@@ -1080,17 +1080,17 @@ async function openSettings() {
   if (curVerEl && info.version) curVerEl.textContent = `v${info.version}`;
   const assoc = await api.assocStatus();
   const btn = $('btnAssoc');
-  btn.textContent = assoc.registered ? '已关联 · 点击取消' : '未关联 · 点击开启';
+  btn.textContent = assoc.registered ? 'Associated · Click to disable' : 'Not associated · Click to enable';
   btn.dataset.on = assoc.registered ? '1' : '0';
 
   api.doctorProfile().then((r) => {
     if (r && r.text) $('autoProfileText').textContent = r.text;
-  }).catch(() => { $('autoProfileText').textContent = 'Automatic模式'; });
+  }).catch(() => { $('autoProfileText').textContent = 'Automatic mode'; });
   api.runtimeUsage().then((u) => {
     $('usageText').textContent = u
-      ? `共 ${u.totalText}${u.reclaimable ? ` · 可回收 ${u.reclaimableText}（${u.count} 项)` : ' · 已是精简状态'}`
-      : '统计不可用';
-  }).catch(() => { $('usageText').textContent = '统计不可用'; });
+      ? `Total: ${u.totalText}${u.reclaimable ? ` · Reclaimable: ${u.reclaimableText} (${u.count} items)` : ' · Already optimized'}`
+      : 'Statistics unavailable';
+  }).catch(() => { $('usageText').textContent = 'Statistics unavailable'; });
 
   $('settingsMask').classList.add('on');
   refreshAndroid();
@@ -1117,11 +1117,11 @@ function renderUpdate(info) {
   if (info.current) cur.textContent = `v${info.current}`;
 
   if (info.ok === false) {
-    st.textContent = `检查Failed: ${info.error || '网络不可用'}`;
+    st.textContent = `Update check failed: ${info.error || 'Network unavailable'}`;
     // 检查失败也要给一条出路：直接把发布页打开，用户至少能手动下载。
     // 以前这里是「什么都不显示”，用户只会觉得「更新功能坏了”。
     showUpdateBtn(true);
-    btn.textContent = '打开下载页';
+    btn.textContent = 'Open Downloads';
     btn.dataset.mode = 'manual';
     lastUpdate = { htmlUrl: info.htmlUrl || '' };
     if (bar) bar.hidden = true;
@@ -1132,21 +1132,21 @@ function renderUpdate(info) {
     // 用户排查「为什么检查更新很慢”时，这一行比任何日志都直接。
     const src = (info.sources || []).map((x) => `${x.name} ${x.tag || ''}`.trim()).join(' / ');
     const bad = (info.unreachable || []).map((x) => x.name).join(', ');
-    const stale = info.stale ? '（离线缓存，可能不是最新)' : '';
-    st.textContent = `发现新版本 ${info.tag}${src ? `（${src})` : ''}${bad ? `；${bad} 不可达` : ''}${stale}`;
+    const stale = info.stale ? ' (offline cache; may be outdated)' : '';
+    st.textContent = `New version ${info.tag}${src ? ` (${src})` : ''}${bad ? `; ${bad} unavailable` : ''}${stale}`;
     showUpdateBtn(true);
-    btn.textContent = info.asset ? '立即更新' : '打开下载页';
+    btn.textContent = info.asset ? 'Update Now' : 'Open Downloads';
     btn.dataset.mode = info.asset ? 'auto' : 'manual';
     const note = $('updateNote');
     if (note && info.notes) {
       const brief = String(info.notes).split('\n').slice(0, 8).join('\n').trim();
-      if (brief) note.textContent = `更新内容：\n${brief}`;
+      if (brief) note.textContent = `What's new:\n${brief}`;
     }
     if (bar) bar.hidden = true;
   } else {
     const src = (info.sources || []).map((x) => x.name).join(' / ');
-    const stale = info.stale ? '（离线缓存)' : '';
-    st.textContent = `已是最新版本（v${info.current})${src ? ` · 经由 ${src}` : ''}${stale}`;
+    const stale = info.stale ? ' (offline cache)' : '';
+    st.textContent = `Up to date (v${info.current})${src ? ` · Source: ${src}` : ''}${stale}`;
     showUpdateBtn(false);
     if (bar) bar.hidden = true;
   }
@@ -1166,12 +1166,12 @@ function renderUpdateProgress(p) {
   const bar = $('updateBar');
   const fill = $('updateBarFill');
   if (p.stage === 'error') {
-    if (st) st.textContent = `更新Failed: ${p.message || ''}`;
+    if (st) st.textContent = `Update failed: ${p.message || ''}`;
     if (bar) bar.hidden = true;
-    toast({ title: '更新失败', body: p.message || '', type: 'error' });
+    toast({ title: 'Update failed', body: p.message || '', type: 'error' });
     return;
   }
-  if (st) st.textContent = p.message || '正在更新…';
+  if (st) st.textContent = p.message || 'Updating…';
   if (bar && fill) {
     bar.hidden = false;
     fill.style.width = `${Math.max(0, Math.min(100, p.percent || 0))}%`;
@@ -1187,15 +1187,15 @@ function bindUpdate() {
     if (!silent) {
       check.disabled = true;
       const old = check.textContent;
-      check.textContent = '检查中…';
-      $('updateState').textContent = '正在连接 GitHub…';
+      check.textContent = 'Checking…';
+      $('updateState').textContent = 'Connecting to GitHub…';
       try {
         const info = await api.updateCheck();
         renderUpdate(info);
-        if (info && info.hasUpdate) toast({ title: `发现新版本 ${info.tag}`, body: '点「立即更新”Automatic下载安装', type: 'info' });
-        else if (info && info.ok !== false) toast({ title: '已是最新版本', body: `v${info.current}`, type: 'ok' });
+        if (info && info.hasUpdate) toast({ title: `New version ${info.tag}`, body: 'Click Update Now to download and install', type: 'info' });
+        else if (info && info.ok !== false) toast({ title: 'Already up to date', body: `v${info.current}`, type: 'ok' });
       } catch (e) {
-        $('updateState').textContent = `检查Failed: ${e.message}`;
+        $('updateState').textContent = `Update check failed: ${e.message}`;
       } finally {
         check.disabled = false;
         check.textContent = old;
@@ -1214,17 +1214,17 @@ function bindUpdate() {
       return;
     }
     go.disabled = true;
-    go.textContent = '更新中…';
+    go.textContent = 'Updating…';
     const r = await api.updateApply().catch((e) => ({ ok: false, error: e.message }));
     if (!r || !r.ok) {
       go.disabled = false;
-      go.textContent = '立即更新';
+      go.textContent = 'Update Now';
       if (r && r.error && !r.manual) {
-        $('updateState').textContent = `更新Failed: ${r.error}`;
-        toast({ title: '更新失败', body: r.error, type: 'error' });
+        $('updateState').textContent = `Update failed: ${r.error}`;
+        toast({ title: 'Update failed', body: r.error, type: 'error' });
       }
     } else {
-      $('updateState').textContent = `已下载 v${r.version}，正在重启完成安装…`;
+      $('updateState').textContent = `Downloaded v${r.version}; restarting to finish installation…`;
     }
   });
 
@@ -1245,17 +1245,17 @@ function bindSettings() {
       const r = await api.preflightApply().catch(() => null);
       btn.disabled = false;
       if (!r || !r.ok) {
-        toast({ type: 'error', title: '应用失败', body: (r && r.error) || 'Please try again later' });
+        toast({ type: 'error', title: 'Failed to apply', body: (r && r.error) || 'Please try again later' });
         return;
       }
       state.settings = r.settings;
       toast({
         type: 'ok',
-        title: '已按这台机器配置好',
-        body: `内存 ${Math.round((r.recommended.memoryMB || 0) / 1024)} GB / ${r.recommended.cores} 核 / ${r.recommended.renderSize}`
-          + (r.driverFile ? '；已生成驱动，下次开机会Automatic套用' : ''),
+        title: 'Configured for this computer',
+        body: `Memory: ${Math.round((r.recommended.memoryMB || 0) / 1024)} GB / ${r.recommended.cores} cores / ${r.recommended.renderSize}`
+          + (r.driverFile ? '; a driver profile was created and will apply on the next launch' : ''),
       });
-      if (r.driverError) toast({ type: 'warn', title: '驱动没写成功', body: r.driverError });
+      if (r.driverError) toast({ type: 'warn', title: 'Could not save driver profile', body: r.driverError });
       fillSettings(r.settings);
       refreshStatus();
     });
@@ -1264,7 +1264,7 @@ function bindSettings() {
   if ($('btnDrvFolder')) {
     $('btnDrvFolder').addEventListener('click', async () => {
       const r = await api.driversOpenFolder().catch(() => null);
-      if (!r || !r.ok) toast({ type: 'error', title: '打不开驱动目录' });
+      if (!r || !r.ok) toast({ type: 'error', title: 'Cannot open drivers folder' });
     });
   }
   if ($('btnDrvImport')) {
@@ -1272,10 +1272,10 @@ function bindSettings() {
       const r = await api.driversImport().catch(() => null);
       if (!r || r.canceled) return;
       if (!r.ok) {
-        toast({ type: 'error', title: '导入失败', body: (r.errors || []).slice(0, 3).join('；') });
+        toast({ type: 'error', title: 'Import failed', body: (r.errors || []).slice(0, 3).join('; ') });
         return;
       }
-      toast({ type: 'ok', title: '驱动已导入并启用', body: `${r.driver.name} v${r.driver.version}` });
+      toast({ type: 'ok', title: 'Driver imported and enabled', body: `${r.driver.name} v${r.driver.version}` });
       if (r.overview) renderDrivers(r.overview);
     });
   }
@@ -1283,8 +1283,8 @@ function bindSettings() {
     $('btnDrvExport').addEventListener('click', async () => {
       const r = await api.driversExportTemplate().catch(() => null);
       if (!r || r.canceled) return;
-      if (!r.ok) { toast({ type: 'error', title: '导出失败' }); return; }
-      toast({ type: 'ok', title: '模板已导出', body: '改完 effect 后放到驱动目录，点「刷新”即可生效' });
+      if (!r.ok) { toast({ type: 'error', title: 'Export failed' }); return; }
+      toast({ type: 'ok', title: 'Template exported', body: 'Edit effect, copy the JSON to the drivers folder, then select Refresh' });
       refreshDrivers();
     });
   }
@@ -1307,7 +1307,7 @@ function bindSettings() {
       // 资源策略会连带改 liteMode / priorityMode / renderSize（主进程里翻译)
       state.settings = await api.setSettings({ engine: { resourceMode: e.target.value } });
       fillSettings(state.settings);
-      toast({ title: '资源策略已切换', body: '下一次Open App生效', type: 'ok' });
+      toast({ title: 'Resource policy changed', body: 'Applies the next time you open an app', type: 'ok' });
     });
   }
   if ($('setRenderSize')) {
@@ -1319,15 +1319,15 @@ function bindSettings() {
   if ($('setLocale')) {
     $('setLocale').addEventListener('change', async (e) => {
       state.settings = await api.setSettings({ engine: { locale: e.target.value } });
-      toast({ title: '系统语言已更新', body: '下次重启安卓运行时后生效', type: 'ok' });
+      toast({ title: 'System language changed', body: 'Restart the Android runtime to apply', type: 'ok' });
     });
   }
   if ($('setChineseIme')) {
     $('setChineseIme').addEventListener('change', async (e) => {
       state.settings = await api.setSettings({ engine: { chineseIme: e.target.checked } });
       toast({
-        title: e.target.checked ? '已开启中文输入法' : 'Closed中文输入法',
-        body: '下次重启安卓运行时后生效',
+        title: e.target.checked ? 'Chinese input method enabled' : 'Chinese input method disabled',
+        body: 'Restart the Android runtime to apply',
         type: 'ok',
       });
     });
@@ -1344,17 +1344,17 @@ function bindSettings() {
   if ($('btnGrowData')) {
     $('btnGrowData').addEventListener('click', async () => {
       const gb = Number($('setDataGB').value) || 0;
-      if (!gb) { toast({ title: '先选一个容量', body: '「Automatic”表示由软件按磁盘余量决定，不需要扩容', type: 'info' }); return; }
+      if (!gb) { toast({ title: 'Select a capacity first', body: 'Automatic lets ApkStart choose based on free space; no expansion is needed', type: 'info' }); return; }
       const { response } = await api.confirm({
-        title: '立刻把安卓数据分区扩容？',
-        message: `将把 /data 调整为 ${gb} GB（就地扩容，已装应用和存档都会保留)。`,
-        detail: '扩容需要先关掉Running的安卓应用，完成后下次Open App会重新引导，约多花十几秒。',
-        okLabel: '开始扩容',
+        title: 'Expand the Android data partition now?',
+        message: `Resize /data to ${gb} GB in place, preserving installed apps and saved games.`,
+        detail: 'Running Android apps must be closed first. The next app launch will reboot Android and may take a little longer.',
+        okLabel: 'Start Expansion',
       });
       if (response !== 1) return;
       $('btnGrowData').disabled = true;
       const old = $('btnGrowData').textContent;
-      $('btnGrowData').textContent = '扩容中…';
+      $('btnGrowData').textContent = 'Expanding…';
       const r = await api.setDataSize(gb).catch((e) => ({ ok: false, error: e.message }));
       $('btnGrowData').disabled = false;
       $('btnGrowData').textContent = old;
@@ -1362,22 +1362,22 @@ function bindSettings() {
         // 快速启动的差量盘挡着：就地扩容做不到，只能按新容量重建 /data。
         // 这是明确的数据丢失操作，必须单独再确认一次。
         const again = await api.confirm({
-          title: '需要重置安卓数据才能扩容',
-          message: `安卓正在使用快速启动差量盘，就地扩容改不到它。要拿到 ${gb} GB 空间，必须按新容量重建 /data。`,
-          detail: '重建会清空已安装的应用与存档（模拟器本身和镜像不受影响)。确定继续吗？',
-          okLabel: '清空并重建',
+          title: 'Reset Android data to expand the partition?',
+          message: `The quick-boot overlay prevents in-place expansion. To get ${gb} GB, /data must be rebuilt at the new size.`,
+          detail: 'Rebuilding erases installed apps and saved games but leaves the emulator and system image intact. Continue?',
+          okLabel: 'Erase and Rebuild',
         });
         if (again.response !== 1) { refreshDataInfo(); return; }
         $('btnGrowData').disabled = true;
-        $('btnGrowData').textContent = '重建中…';
+        $('btnGrowData').textContent = 'Rebuilding…';
         const rr = await api.resetAndResize(gb).catch((e) => ({ ok: false, error: e.message }));
         $('btnGrowData').disabled = false;
         $('btnGrowData').textContent = old;
         toast({
           type: rr && rr.ok ? 'ok' : 'error',
-          title: rr && rr.ok ? '已按新容量重建' : '重建失败',
+          title: rr && rr.ok ? 'Rebuild scheduled at new size' : 'Rebuild failed',
           body: rr && rr.ok
-            ? `下次Open App会按 ${gb} GB 重建 /data（首次进入会多等几十秒)`
+            ? `The next app launch will rebuild /data at ${gb} GB and may take longer.`
             : (rr && rr.error) || 'Unknown error',
         });
         refreshDataInfo();
@@ -1385,8 +1385,8 @@ function bindSettings() {
       }
       toast({
         type: r && r.ok ? 'ok' : 'error',
-        title: r && r.ok ? '数据分区已扩容' : '扩容失败',
-        body: r && r.ok ? `现在约 ${r.fsGB || r.imageGB || gb} GB 可用` : (r && r.error) || 'Unknown error',
+        title: r && r.ok ? 'Data partition expanded' : 'Expansion failed',
+        body: r && r.ok ? `Approximately ${r.fsGB || r.imageGB || gb} GB available` : (r && r.error) || 'Unknown error',
       });
       refreshDataInfo();
     });
@@ -1426,7 +1426,7 @@ function bindSettings() {
   if ($('setKeymapEnabled')) {
     $('setKeymapEnabled').addEventListener('change', async (e) => {
       await api.keymap.setEnabled(e.target.checked);
-      toast({ title: e.target.checked ? '键盘映射已开启' : '键盘映射Closed', type: 'ok' });
+      toast({ title: e.target.checked ? 'Key mapping enabled' : 'Key mapping disabled', type: 'ok' });
     });
   }
   $('setDeepTrim').addEventListener('change', async (e) => {
@@ -1434,7 +1434,7 @@ function bindSettings() {
     // 关掉深度裁剪必须把之前 pm disable-user 的包恢复回来，否则影响是持久的
     if (!e.target.checked) {
       api.restoreSystemApps().catch(() => {});
-      toast({ title: '已恢复系统组件', body: '深度裁剪关闭，后台包正在恢复', type: 'info' });
+      toast({ title: 'System components restored', body: 'Background packages are being re-enabled', type: 'info' });
     }
   });
   $('setCompat').addEventListener('change', async (e) => {
@@ -1443,8 +1443,8 @@ function bindSettings() {
     const env = ((state.status = await api.runtimeStatus()).env) || {};
     const ok = env.playImage && env.playImage.ok;
     $('compatInstallField').hidden = !on || !!ok;
-    if (on && !ok) toast({ title: 'ARM 兼容模式已开启', body: '还需要下载 Google Play 兼容镜像（Android 14，约 1.5GB)，点击下方按钮开始', type: 'info' });
-    else if (on) toast({ title: 'ARM 兼容模式已开启', body: '重启运行时后生效', type: 'info' });
+    if (on && !ok) toast({ title: 'ARM compatibility enabled', body: 'Download the Google Play-compatible Android 14 image (about 1.5 GB) below', type: 'info' });
+    else if (on) toast({ title: 'ARM compatibility enabled', body: 'Restart the runtime to apply', type: 'info' });
   });
   $('setAutoShortcut').addEventListener('change', (e) => save({ createShortcutOnInstall: e.target.checked }));
   $('setStartMenuShortcut').addEventListener('change', (e) => save({ createStartMenuShortcut: e.target.checked }));
@@ -1455,13 +1455,13 @@ function bindSettings() {
     const mode = e.target.value;
     $('portraitField').hidden = mode === 'fullscreen';
     state.settings = await api.setSettings({ display: { mode } });
-    toast({ title: mode === 'fullscreen' ? '已切全屏' : '已切竖屏窗口', type: 'ok' });
+    toast({ title: mode === 'fullscreen' ? 'Fullscreen enabled' : 'Portrait window enabled', type: 'ok' });
   });
   if ($('setAutoFullscreen')) {
     $('setAutoFullscreen').addEventListener('change', async (e) => {
       const on = e.target.value === 'on';
       state.settings = await api.setSettings({ display: { autoFullscreenOnLaunch: on } });
-      toast({ title: on ? '已开启Automatic全屏' : 'ClosedAutomatic全屏', body: '下次Open App时生效', type: 'ok' });
+      toast({ title: on ? 'Automatic fullscreen enabled' : 'Automatic fullscreen disabled', body: 'Applies on the next app launch', type: 'ok' });
     });
   }
   if ($('setOrientationMode')) {
@@ -1469,10 +1469,10 @@ function bindSettings() {
       const mode = e.target.value;
       state.settings = await api.setSettings({ display: { orientationMode: mode } });
       toast({
-        title: mode === 'auto' ? '已设为跟随应用' : (mode === 'landscape' ? '已强制横屏' : '已强制竖屏'),
+        title: mode === 'auto' ? 'Follow App selected' : (mode === 'landscape' ? 'Forced landscape selected' : 'Forced portrait selected'),
         body: mode === 'auto'
-          ? '下次Open App时会按应用自己的方向选面板，方向不一致的话会重启一次运行时。'
-          : '下次Open App时会重启一次运行时把面板切到指定方向，之后不再重启。',
+          ? 'The panel will match the app orientation on its next launch; Android may restart once if the orientation changes.'
+          : 'The runtime will restart once to apply the forced panel orientation.',
         type: 'ok',
       });
     });
@@ -1482,8 +1482,8 @@ function bindSettings() {
       const on = e.target.value === 'on';
       state.settings = await api.setSettings({ display: { tabletMode: on } });
       toast({
-        title: on ? '已打开平板排版' : 'Closed平板排版',
-        body: '下次Open App时生效（会重启一次运行时来改逻辑密度)。',
+        title: on ? 'Tablet layout enabled' : 'Tablet layout disabled',
+        body: 'Applies on the next app launch; the runtime restarts to update display density.',
         type: 'ok',
       });
     });
@@ -1493,30 +1493,30 @@ function bindSettings() {
       const landscape = e.target.value === 'landscape';
       state.settings = await api.setSettings({ display: { landscape } });
       toast({
-        title: landscape ? '面板已设为横屏' : '面板已设为竖屏',
-        body: '下次Open App时会重启一次运行时来切换物理面板方向（约十几秒)，之后就不会再重启。',
+        title: landscape ? 'Panel set to landscape' : 'Panel set to portrait',
+        body: 'The runtime may restart once on the next launch to apply physical panel orientation.',
         type: 'ok',
       });
     });
   }
   $('setPortrait').addEventListener('change', async (e) => {
     state.settings = await api.setSettings({ display: { portrait: e.target.value } });
-    toast({ title: '画面大小已更新', body: '下次Open App或切换应用时生效', type: 'ok' });
+    toast({ title: 'Display size updated', body: 'Applies when you next open or switch apps', type: 'ok' });
   });
   $('setWindowEmbed').addEventListener('change', async (e) => {
     const embed = e.target.value === 'embed';
     state.settings = await api.setSettings({ display: { windowEmbed: embed } });
     toast({
-      title: embed ? '已切回嵌入模式' : '已切到独立窗口模式',
-      body: '下次Open App时生效。独立模式下安卓画面由模拟器自己开窗口，方向与缩放都由它处理。',
+      title: embed ? 'Embedded window mode enabled' : 'Detached window mode enabled',
+      body: 'Applies on the next launch. In detached mode the emulator manages the Android window, rotation, scaling, and input.',
       type: 'ok',
     });
   });
   $('btnRebuildShortcuts').addEventListener('click', async () => {
     const r = await api.rebuildShortcuts();
     toast({
-      title: r && r.fixed && r.fixed.length ? '已补齐快捷方式' : '快捷方式都还在',
-      body: r && r.fixed && r.fixed.length ? r.fixed.join(', ') : '桌面与开始菜单入口正常',
+      title: r && r.fixed && r.fixed.length ? 'Missing shortcuts restored' : 'All shortcuts are present',
+      body: r && r.fixed && r.fixed.length ? r.fixed.join(', ') : 'Desktop and Start menu shortcuts are working',
       type: 'ok',
     });
   });
@@ -1524,9 +1524,9 @@ function bindSettings() {
   $('btnDiagnostics').addEventListener('click', async () => {
     try {
       const r = await api.doctorReport();
-      toast({ title: '诊断报告已导出', body: `${r.diagnosis.title} · ${r.file}`, type: 'ok', sticky: true });
+      toast({ title: 'Diagnostic report exported', body: `${r.diagnosis.title} · ${r.file}`, type: 'ok', sticky: true });
     } catch (e) {
-      toast({ title: '导出失败', body: e.message, type: 'error' });
+      toast({ title: 'Export failed', body: e.message, type: 'error' });
     }
   });
 
@@ -1537,20 +1537,20 @@ function bindSettings() {
     try {
       const preview = await api.runtimeCleanup({ apply: false, includeSnapshots });
       if (!preview.candidates.length) {
-        toast({ title: '已经是精简状态', body: '没有可回收的旧镜像或快照。', type: 'ok' });
+        toast({ title: 'Already optimized', body: 'No reclaimable images or snapshots found.', type: 'ok' });
         return;
       }
       const r = await api.runtimeCleanup({ apply: true, includeSnapshots });
       if (r.cancelled) return;
       toast({
-        title: '清理完成',
-        body: `释放约 ${(r.saved / 1048576).toFixed(0)} MB（${r.removed.length} 项)，已安装应用保留。`,
+        title: 'Cleanup complete',
+        body: `Freed approximately ${(r.saved / 1048576).toFixed(0)} MB (${r.removed.length} items). Installed apps were preserved.`,
         type: 'ok',
       });
       const u = await api.runtimeUsage();
-      $('usageText').textContent = `共 ${u.totalText} · 可回收 ${u.reclaimableText}（${u.count} 项)`;
+      $('usageText').textContent = `Total: ${u.totalText} · Reclaimable: ${u.reclaimableText} (${u.count} items)`;
     } catch (e) {
-      toast({ title: '清理失败', body: e.message, type: 'error' });
+      toast({ title: 'Cleanup failed', body: e.message, type: 'error' });
     } finally {
       btn.disabled = false;
     }
@@ -1563,41 +1563,41 @@ function bindSettings() {
     try {
       const first = await api.confirm({
         type: 'warning',
-        title: '重置安卓数据？',
-        message: '这会把安卓系统还原成「刚装好系统”的干净状态：',
-        detail: '• 删除全部已安装的第三方 app（含红果, 游戏等)及其数据, 登录态\n'
-          + '• 删除当前 AVD 的快速启动快照\n'
-          + '• System image本身不受影响，重新Open App会再次冷启动建数据\n\n'
-          + '此操作不可撤销。是否继续？',
-        buttons: ['取消', '继续'],
+        title: 'Reset Android data?',
+        message: 'This will restore Android to a clean, newly installed state:',
+        detail: '• Delete all installed third-party apps and their data, including sign-in sessions\n'
+          + '• Delete the current AVD quick-boot snapshot\n'
+          + '• Keep the system image; apps will cold-boot when reinstalled\n\n'
+          + 'This action cannot be undone. Continue?',
+        buttons: ['Cancel', 'Continue'],
         defaultId: 0,
         cancelId: 0,
       });
       if (!first || first.response !== 1) return;
       const second = await api.confirm({
         type: 'warning',
-        title: '再确认一次',
-        message: '已安装的 app 和它们的数据将被永久删除，确定要重置吗？',
-        detail: '可放心的是：System image, 其它 AVD, 本机的 APK 缓存和图标都不会动。',
-        buttons: ['取消', '确定重置'],
+        title: 'Confirm reset',
+        message: 'Installed apps and their data will be permanently deleted. Reset now?',
+        detail: 'The system image, other AVDs, local APK cache, and icons will not be deleted.',
+        buttons: ['Cancel', 'Reset Now'],
         defaultId: 0,
         cancelId: 0,
       });
       if (!second || second.response !== 1) return;
       const r = await api.runtimeResetData();
       if (!r || !r.ok) {
-        toast({ title: '重置失败', body: (r && r.error) || '请重试', type: 'error' });
+        toast({ title: 'Reset failed', body: (r && r.error) || 'Please retry', type: 'error' });
         return;
       }
       toast({
-        title: '安卓数据已重置',
-        body: `释放约 ${r.reclaimedMB} MB，已安装应用记录已清空。`,
+        title: 'Android data reset',
+        body: `Freed approximately ${r.reclaimedMB} MB; installed app records have been cleared.`,
         type: 'ok',
       });
       const u = await api.runtimeUsage();
-      $('usageText').textContent = `共 ${u.totalText} · 可回收 ${u.reclaimableText}（${u.count} 项)`;
+      $('usageText').textContent = `Total: ${u.totalText} · Reclaimable: ${u.reclaimableText} (${u.count} items)`;
     } catch (e) {
-      toast({ title: '重置失败', body: e.message, type: 'error' });
+      toast({ title: 'Reset failed', body: e.message, type: 'error' });
     } finally {
       btn.disabled = false;
     }
