@@ -1667,7 +1667,7 @@ function bindSettings() {
         type: 'warning',
         title: 'Remove old version files?',
         message: `Found ${items.length} leftover items using about ${mb} MB:`,
-        detail: `${lines.join('\n')}\n\nOnly obsolete installation folders, broken uninstall entries, and temporary update files will be deleted.`,
+        detail: `${lines.join('\n')}\n\nOnly obsolete installation folders, broken uninstall entries, and temporary update files will be deleted.`
           + 'The current installation and app data will not be touched.',
         buttons: ['Cancel', 'Clean Up'],
         defaultId: 1,
