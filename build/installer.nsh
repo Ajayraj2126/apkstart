@@ -12,12 +12,12 @@
 ; $DESKTOP 走 SHGetFolderPath，能正确跟随桌面的重定向路径；写成幂等操作，
 ; 和 electron-builder 的重复执行也只是覆盖同一个 .lnk。
 !macro customInstall
-  DetailPrint "正在创建桌面快捷方式…"
+  DetailPrint "Creating desktop shortcut…"
   CreateShortcut "$DESKTOP\ApkStart.lnk" "$INSTDIR\ApkStart.exe" "" "$INSTDIR\ApkStart.exe" 0 \
-    SW_SHOWNORMAL "" "ApkStart — 在电脑上直接运行安卓应用"
+    SW_SHOWNORMAL "" "ApkStart — Run Android Apps on Windows"
   CreateDirectory "$SMPROGRAMS\ApkStart"
   CreateShortcut "$SMPROGRAMS\ApkStart\ApkStart.lnk" "$INSTDIR\ApkStart.exe" "" "$INSTDIR\ApkStart.exe" 0 \
-    SW_SHOWNORMAL "" "ApkStart — 在电脑上直接运行安卓应用"
+    SW_SHOWNORMAL "" "ApkStart — Run Android Apps on Windows"
 !macroend
 
 !macro customUnInstall
@@ -26,7 +26,7 @@
   Delete "$SMPROGRAMS\ApkStart\ApkStart.lnk"
   RMDir "$SMPROGRAMS\ApkStart"
 
-  DetailPrint "正在结束 ApkStart 残留进程…"
+  DetailPrint "Stopping leftover ApkStart processes…"
   ; /F 强杀 /T 连带子进程。进程不存在时 taskkill 返回 128，忽略即可。
   nsExec::Exec 'taskkill.exe /F /T /IM ApkStart.exe'
   nsExec::Exec 'taskkill.exe /F /T /IM qemu-system-x86_64.exe'
